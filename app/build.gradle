@@ -51,10 +51,14 @@ android {
 }
 
 dependencies {
+    def nav_version = "2.6.0"
+
+    implementation "androidx.navigation:navigation-compose:$nav_version"
 
     //hilt implementation
     implementation "com.google.dagger:hilt-android:2.44"
     kapt "com.google.dagger:hilt-compiler:2.44"
+    implementation "androidx.hilt:hilt-navigation-compose:1.0.0"
 
     //coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'

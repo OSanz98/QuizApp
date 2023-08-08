@@ -6,6 +6,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import sanzlimited.com.quizapp.data.implementation.QuestionRepositoryImpl
 import sanzlimited.com.quizapp.data.network.QuestionApi
 import sanzlimited.com.quizapp.util.constants.AppConstants
 import javax.inject.Singleton
@@ -17,11 +18,16 @@ object AppModule {
 //    Provide one instance of our Question API across the app
     @Singleton
     @Provides
-    fun provideQuestionApi(): QuestionApi {
+    fun provideRetrofit(): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(AppConstants.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
+            .baseUrl(AppConstants.BASE_URL)
             .build()
-            .create(QuestionApi::class.java)
+    }
+
+    @Singleton
+    @Provides
+    fun provideQuestionAPI(retrofit: Retrofit): QuestionApi {
+        return retrofit.create(QuestionApi::class.java)
     }
 }
