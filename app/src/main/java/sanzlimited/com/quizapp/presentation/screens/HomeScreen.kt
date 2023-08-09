@@ -6,12 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
@@ -28,18 +25,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import sanzlimited.com.quizapp.Quiz
 import sanzlimited.com.quizapp.ui.theme.QuizAppTheme
 import sanzlimited.com.quizapp.util.constants.Categories
 
 
 @Composable
-fun HomeScreen(){
+fun homeScreen(navController: NavController){
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
             Categories.values().forEach {
-                CustomCard(cardAction = {}){
+                customCard(cardAction = { navController.navigate(Quiz.route) }){
                     Text(it.categoryName, style = MaterialTheme.typography.titleMedium)
                 }
             }
@@ -48,7 +47,7 @@ fun HomeScreen(){
 }
 
 @Composable
-fun CustomCard(
+fun customCard(
     modifier: Modifier = Modifier,
     cardAction: () -> Unit,
     elevation: Dp = 4.dp,
@@ -93,7 +92,7 @@ fun previewCustomCard(){
                 verticalArrangement = Arrangement.SpaceEvenly
             ) {
                 Categories.values().forEach {
-                    CustomCard(cardAction = {}){
+                    customCard(cardAction = {}){
                         Text(it.categoryName, style = MaterialTheme.typography.titleMedium)
                     }
                 }
