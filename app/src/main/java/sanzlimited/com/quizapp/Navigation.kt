@@ -1,9 +1,12 @@
 package sanzlimited.com.quizapp
 
-import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -36,7 +39,6 @@ object Quiz: Destination {
     const val routeArg: String = "category"
     val routeWithArg: String = "quiz/{$routeArg}"
     val arguments = listOf(navArgument("category"){ type = NavType.StringType })
-    //fun getNavigationToQuiz(category: String) = "category/$category"
 }
 
 
@@ -45,29 +47,51 @@ fun navigationRouter() {
     val navController: NavHostController = rememberNavController()
     NavHost(navController = navController, startDestination = Home.route,) {
         composable(Home.route) {
-            customScaffold(appBarTitle = stringResource(id = Home.title), content = {
-                homeScreen(navController)
+            customScaffold(appBarTitle = stringResource(id = Home.title), hasBackButton = false, content = {
+                homeScreen(onNavigate = { value ->
+                    navController.navigate(route = Quiz.route + "/$value")
+                })
             })
         }
         composable(route = Quiz.routeWithArg, arguments = Quiz.arguments){ navBackStackEntry ->
-            customScaffold(appBarTitle = stringResource(id = Quiz.title), content = {
-                quizScreen(category = navBackStackEntry.arguments?.getString("category"))
-            })
+            val argumentValue = navBackStackEntry.arguments?.getString(Quiz.routeArg)
+            customScaffold(appBarTitle = stringResource(
+                id = Quiz.title) + " - $argumentValue",
+                hasBackButton = true,
+                backButton = {
+                     navController.popBackStack()
+                },
+                content = {
+                    quizScreen(category = argumentValue)
+                }
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun customScaffold(appBarTitle: String, content: @Composable () -> Unit){
+fun customScaffold(appBarTitle: String, content: @Composable () -> Unit, hasBackButton: Boolean, backButton: () -> Unit = {}){
     Scaffold(
         topBar = {
-            TopAppBar(title = {
-                Text(text = appBarTitle)
-            }, colors = TopAppBarDefaults.mediumTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                titleContentColor = Color.Black
-            ))
+            TopAppBar(
+                title = {
+                    Text(text = appBarTitle)
+                },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White
+                ),
+                navigationIcon = {
+                    if (hasBackButton) {
+                        IconButton(onClick = { backButton() }) {
+                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+                    } else {
+                        null
+                    }
+                }
+            )
         },
     ) { contentPadding ->
         Box(modifier = Modifier

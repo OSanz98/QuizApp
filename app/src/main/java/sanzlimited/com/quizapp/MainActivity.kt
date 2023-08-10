@@ -23,23 +23,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-@Composable
-fun QuizHome(viewModel: QuestionsViewModel = hiltViewModel()){
-    Questions(viewModel = viewModel)
-}
-
-
-@Composable
-fun Questions(viewModel: QuestionsViewModel){
-    viewModel.getAllQuestions("Linux")
-    val response = viewModel.data.value.data?.toMutableList()
-    if(viewModel.data.value.loading == true) {
-        Log.d("Loading", "Questions: .... Loading ....")
-    } else {
-        Log.d("Loading", "Questions: Loading stopped....")
-        response?.forEach {
-            Log.d("Result", "Questions: ${it.question}")
-        }
-    }
-}

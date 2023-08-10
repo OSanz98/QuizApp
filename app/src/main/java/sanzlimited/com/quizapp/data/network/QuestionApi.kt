@@ -16,7 +16,7 @@ interface QuestionApi {
         category: String,
         @Header("X-Api-Key")
         apiKey: String = AppConstants.API_KEY
-    ): Question
+    ): Response<Question>
 
     @GET("api/v1/questions")
     suspend fun getSpecificDifficultyQuestions(
@@ -26,5 +26,5 @@ interface QuestionApi {
         difficulty: String,
         @Header("X-Api-Key")
         apiKey: String = AppConstants.API_KEY
-    ): Question
+    ): Response<Question>
 }

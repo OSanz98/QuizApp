@@ -25,20 +25,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import sanzlimited.com.quizapp.Quiz
 import sanzlimited.com.quizapp.ui.theme.QuizAppTheme
 import sanzlimited.com.quizapp.util.constants.Categories
 
 
 @Composable
-fun homeScreen(navController: NavController){
+fun homeScreen(onNavigate: (String) -> Unit ){
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
             Categories.values().forEach {
-                customCard(cardAction = { navController.navigate(Quiz.route) }){
+                customCard(
+                    modifier = Modifier.clickable {
+                        onNavigate(it.categoryName)
+                    }){
                     Text(it.categoryName, style = MaterialTheme.typography.titleMedium)
                 }
             }
@@ -49,7 +50,6 @@ fun homeScreen(navController: NavController){
 @Composable
 fun customCard(
     modifier: Modifier = Modifier,
-    cardAction: () -> Unit,
     elevation: Dp = 4.dp,
     backgroundColor: Color = MaterialTheme.colorScheme.surface,
     content: @Composable () -> Unit
@@ -57,8 +57,7 @@ fun customCard(
     Card(
         modifier = modifier
             .padding(start = 15.dp, end = 15.dp)
-            .fillMaxWidth()
-            .clickable { cardAction },
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = backgroundColor
         ),
@@ -92,7 +91,7 @@ fun previewCustomCard(){
                 verticalArrangement = Arrangement.SpaceEvenly
             ) {
                 Categories.values().forEach {
-                    customCard(cardAction = {}){
+                    customCard(){
                         Text(it.categoryName, style = MaterialTheme.typography.titleMedium)
                     }
                 }

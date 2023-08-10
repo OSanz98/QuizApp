@@ -4,18 +4,17 @@ import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import sanzlimited.com.quizapp.data.DataOrException
-import sanzlimited.com.quizapp.data.model.QuestionItem
+import sanzlimited.com.quizapp.data.Resource
+import sanzlimited.com.quizapp.data.model.Question
 import sanzlimited.com.quizapp.domain.usecase.GetAllDifficultyQuestions
 import sanzlimited.com.quizapp.domain.usecase.GetSpecificDifficultyQuestions
 import javax.inject.Inject
-import kotlin.Exception
 
 @HiltViewModel
 class QuestionsViewModel @Inject constructor(
@@ -24,30 +23,34 @@ class QuestionsViewModel @Inject constructor(
     private val getSpecificDifficultyQuestions: GetSpecificDifficultyQuestions
 ): ViewModel() {
     //creating a mutable state so our components can use it and know what to do - setting it to empty object
-    val data: MutableState<DataOrException<ArrayList<QuestionItem>, Boolean, Exception>> = mutableStateOf(
-        DataOrException(null, true, Exception(""))
-    )
+    private val _quizData = MutableLiveData<Resource<Question>>()
+    val quizData: LiveData<Resource<Question>> = _quizData
 
     fun getAllQuestions(category: String){
+        _quizData.value = Resource.Loading()
         viewModelScope.launch {
             if (isNetworkAvailable(app)){
-                data.value.loading = true
-                data.value = getAllDifficultyQuestions.execute(category)
-                if(data.value.data.toString().isNotEmpty()){
-                    data.value.loading = false
+                val apiResult = getAllDifficultyQuestions.execute(category)
+                if(apiResult.data.toString().isNotEmpty() && apiResult.data != null){
+                    _quizData.value = Resource.Success(apiResult.data)
                 }
+            } else {
+                _quizData.value = Resource.Error("Internet isn't available")
             }
         }
     }
 
     fun getSpecificDifficulty(category: String, difficulty: String){
+        _quizData.postValue(Resource.Loading())
         viewModelScope.launch {
             if (isNetworkAvailable(app)){
-                data.value.loading = true
-                data.value = getSpecificDifficultyQuestions.execute(category, difficulty)
-                if (data.value.data.toString().isNotEmpty()){
-                    data.value.loading = false
+                _quizData.postValue(Resource.Loading())
+                val apiResult = getSpecificDifficultyQuestions.execute(category, difficulty)
+                if(apiResult.data.toString().isNotEmpty()){
+                    _quizData.postValue(apiResult)
                 }
+            } else {
+                _quizData.postValue(Resource.Error("Internet isn't available"))
             }
         }
     }
