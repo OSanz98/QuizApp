@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
@@ -31,16 +32,17 @@ import sanzlimited.com.quizapp.util.constants.Categories
 
 @Composable
 fun homeScreen(onNavigate: (String) -> Unit ){
+    val categoryValues = Categories.values()
+
     Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
+        LazyColumn(
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            Categories.values().forEach {
-                customCard(
-                    modifier = Modifier.clickable {
-                        onNavigate(it.categoryName)
-                    }){
-                    Text(it.categoryName, style = MaterialTheme.typography.titleMedium)
+            items(categoryValues.size){ index ->
+                customCard(modifier = Modifier.clickable {
+                    onNavigate(categoryValues[index].categoryName)
+                }) {
+                    Text(categoryValues[index].categoryName, style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
