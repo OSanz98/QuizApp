@@ -1,10 +1,14 @@
 package sanzlimited.com.quizapp.presentation.screens
 
+import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +28,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Snackbar
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -51,10 +59,11 @@ import sanzlimited.com.quizapp.data.Resource
 import sanzlimited.com.quizapp.data.model.Answers
 import sanzlimited.com.quizapp.data.model.Question
 import sanzlimited.com.quizapp.presentation.viewmodel.QuestionsViewModel
+import kotlin.reflect.KProperty1
 
 @Composable
 fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel()) {
-    val quizResource by viewModel.quizData.observeAsState()
+    val quizResource by viewModel.quizData.observeAsState(initial = Resource.Loading())
     LaunchedEffect(key1 = Unit) {
         if (category != null) {
             viewModel.getAllQuestions(category)
@@ -66,12 +75,15 @@ fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel(
                 loadingAnimation()
             }
             is Resource.Success -> {
-                (quizResource as Resource.Success).data?.let {
-                    quizSuccess(category, it)
+                Log.d("QuizQuestions", "quizScreen: ${(quizResource as Resource.Success<Question>).data}")
+                val questions = (quizResource as Resource.Success).data
+                if (questions != null) {
+                    quizSuccess(questions)
                 }
             }
             is Resource.Error -> {
-//                TODO: Display error message here
+                val errorMessage = (quizResource as Resource.Error).message
+                //TODO: Display error message here
             }
             else -> {
 //                TODO: Display error message here
@@ -83,20 +95,20 @@ fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel(
 
 
 @Composable
-fun quizSuccess(category: String?, questions: Question){
+fun quizSuccess(questions: Question){
+    //keep track of current question so can move onto the next
     var currentQuestionIndex by remember { mutableIntStateOf(0) }
     val selectedAnswers = remember {
         mutableStateMapOf<Int, String>()
     }
-//    keep track of current question so can move onto the next
-    val currentQuestionItem = remember {
-        mutableStateOf(questions[currentQuestionIndex])
-    }
+    var isPopupVisible by remember { mutableStateOf(false) }
+    var totalScore by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ){
         LinearProgressIndicator(
             progress = (currentQuestionIndex + 1) / questions.size.toFloat(),
@@ -104,10 +116,14 @@ fun quizSuccess(category: String?, questions: Question){
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        currentQuestionItem?.let { questionItem ->
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
             questionCard(
-                questionText = questionItem.value.question,
-                answers = questionItem.value.answers,
+                questionText = questions[currentQuestionIndex].question,
+                answers = questions[currentQuestionIndex].answers,
                 selectedAnswer = selectedAnswers[currentQuestionIndex],
                 onAnswerSelected = { answer -> selectedAnswers[currentQuestionIndex] = answer },
                 isCurrentQuestion = true
@@ -121,10 +137,33 @@ fun quizSuccess(category: String?, questions: Question){
                 currentQuestionIndex++
             } else {
                 //TODO: Carry out functionality for when questionnaire is complete
+                totalScore = calculateQuizScore(questions, selectedAnswers)
+                isPopupVisible = true
+
             }
         }) {
             Text(text = if (currentQuestionIndex == questions.size - 1) "Finish" else "Next")
         }
+        //TODO: FIX app failing when calculating score and that
+        customAnimatedPopup(
+            isVisible = isPopupVisible,
+            onDismiss = { isPopupVisible = false },
+            message = when {
+                totalScore <= 50 -> {
+                    "You got $totalScore\nUnlucky! Keep trying, you'll do better next time"
+                }
+                totalScore in 51..75 -> {
+                    "You got $totalScore\nGood Job! You can still do better!"
+                }
+                totalScore > 75 -> {
+                    "You got $totalScore\nWell done! You passed the quiz!"
+                }
+
+                else -> {
+                    "There was an error in calculating you score sorry!"
+                }
+            }
+        )
     }
 }
 
@@ -144,22 +183,69 @@ fun questionCard(questionText: String, answers: Answers, selectedAnswer: String?
         ) {
             Text(text = questionText)
             Spacer(modifier = Modifier.height(8.dp))
-            answers.javaClass.declaredFields.forEach { field ->
-                val answer = field.get(answers) as? String
-                if (answer != null){
-                    answerOption(
-                        answer = answer,
-                        selected = answer == selectedAnswer,
-                        onAnswerSelected = onAnswerSelected,
-                        enabled = isCurrentQuestion
-                    )
+
+            //If all answers are available better to use LazyColumn so user can scroll and see all answers
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+            ){
+                item {
+                    if (answers.answer_a != null && !answers.answer_a.isBlank()) {
+                        answerOption(
+                            answer = answers.answer_a,
+                            selected = answers.answer_a == selectedAnswer,
+                            onAnswerSelected = onAnswerSelected,
+                            enabled = isCurrentQuestion
+                        )
+                    }
+                    if (answers.answer_b != null && !answers.answer_b.isBlank()) {
+                        answerOption(
+                            answer = answers.answer_b,
+                            selected = answers.answer_b == selectedAnswer,
+                            onAnswerSelected = onAnswerSelected,
+                            enabled = isCurrentQuestion
+                        )
+                    }
+                    if (answers.answer_c != null && !answers.answer_c.isBlank()) {
+                        answerOption(
+                            answer = answers.answer_c,
+                            selected = answers.answer_c == selectedAnswer,
+                            onAnswerSelected = onAnswerSelected,
+                            enabled = isCurrentQuestion
+                        )
+                    }
+                    if (answers.answer_d != null && !answers.answer_d.isBlank()) {
+                        answerOption(
+                            answer = answers.answer_d,
+                            selected = answers.answer_d == selectedAnswer,
+                            onAnswerSelected = onAnswerSelected,
+                            enabled = isCurrentQuestion
+                        )
+                    }
+                    if (answers.answer_e != null && !answers.answer_e.isBlank()) {
+                        answerOption(
+                            answer = answers.answer_e,
+                            selected = answers.answer_e == selectedAnswer,
+                            onAnswerSelected = onAnswerSelected,
+                            enabled = isCurrentQuestion
+                        )
+                    }
+                    if (answers.answer_f != null && !answers.answer_f.isBlank()) {
+                        answerOption(
+                            answer = answers.answer_f,
+                            selected = answers.answer_f == selectedAnswer,
+                            onAnswerSelected = onAnswerSelected,
+                            enabled = isCurrentQuestion
+                        )
+                    }
                 }
             }
-
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun answerOption(answer: String, selected: Boolean, onAnswerSelected: (String) -> Unit, enabled: Boolean){
     Card(
@@ -168,7 +254,11 @@ fun answerOption(answer: String, selected: Boolean, onAnswerSelected: (String) -
             .padding(8.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
         shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background),
+        onClick = {
+            onAnswerSelected(answer)
+        }
     ) {
         Row(
             modifier = Modifier
@@ -241,5 +331,83 @@ fun loadingAnimation(
             }
         }
     }
+}
 
+fun calculateQuizScore(question: Question, selectedAnswers: MutableMap<Int, String>) : Int {
+    var totalQuestionsRight = 0
+    val correctAnswers = extractCorrectAnswers(question)
+    var currentIndex = 0
+    selectedAnswers.forEach { (i, s) ->
+        if (s == correctAnswers[currentIndex]) {
+            totalQuestionsRight++
+        }
+        currentIndex++
+    }
+    return (totalQuestionsRight / question.size) * 100
+}
+
+fun extractCorrectAnswers(question: Question): ArrayList<String> {
+    val extractedAnswers = arrayListOf<String>()
+    var currentIndex = 0
+    question.forEach { questionItem ->
+        val correctAnswers = questionItem.correct_answers
+        val answers = questionItem.answers
+        if (correctAnswers.answer_a_correct == "true") {
+            extractedAnswers[currentIndex] = answers.answer_a
+        } else if (correctAnswers.answer_b_correct == "true") {
+            extractedAnswers[currentIndex] = answers.answer_b
+        } else if (correctAnswers.answer_c_correct == "true") {
+            extractedAnswers[currentIndex] = answers.answer_c
+        }else if (correctAnswers.answer_d_correct == "true") {
+            extractedAnswers[currentIndex] = answers.answer_d
+        } else if (correctAnswers.answer_e_correct == "true") {
+            extractedAnswers[currentIndex] = answers.answer_e
+        }else if (correctAnswers.answer_f_correct == "true") {
+            extractedAnswers[currentIndex] = answers.answer_f
+        }
+        currentIndex++
+    }
+    return extractedAnswers
+}
+
+
+@Composable
+fun customAnimatedPopup(isVisible: Boolean, onDismiss: () -> Unit, message: String) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        customPopup(isVisible = isVisible, onDismiss = onDismiss, message = message)
+    }
+}
+
+@Composable
+fun customPopup(isVisible: Boolean, onDismiss: () -> Unit, message: String) {
+    if (isVisible) {
+        Card(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .background(Color.White)
+                .clip(RoundedCornerShape(8.dp))
+                .alpha(0.95f)
+        ) {
+            Column(
+                modifier = Modifier,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(16.dp)
+                )
+                Button(onClick = { onDismiss }){
+                    Text(text = "Complete")
+                }
+            }
+
+        }
+    }
 }
