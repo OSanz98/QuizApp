@@ -33,6 +33,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +46,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +59,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import sanzlimited.com.quizapp.data.Resource
 import sanzlimited.com.quizapp.data.model.Answers
 import sanzlimited.com.quizapp.data.model.Question
@@ -62,7 +67,7 @@ import sanzlimited.com.quizapp.presentation.viewmodel.QuestionsViewModel
 import kotlin.reflect.KProperty1
 
 @Composable
-fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel()) {
+fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel(), onNavigate: (Int) -> Unit) {
     val quizResource by viewModel.quizData.observeAsState(initial = Resource.Loading())
     LaunchedEffect(key1 = Unit) {
         if (category != null) {
@@ -78,7 +83,7 @@ fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel(
                 Log.d("QuizQuestions", "quizScreen: ${(quizResource as Resource.Success<Question>).data}")
                 val questions = (quizResource as Resource.Success).data
                 if (questions != null) {
-                    quizSuccess(questions)
+                    quizSuccess(questions, onNavigate)
                 }
             }
             is Resource.Error -> {
@@ -95,14 +100,17 @@ fun quizScreen(category: String?, viewModel: QuestionsViewModel = hiltViewModel(
 
 
 @Composable
-fun quizSuccess(questions: Question){
+fun quizSuccess(questions: Question, onNavigate: (Int) -> Unit){
     //keep track of current question so can move onto the next
     var currentQuestionIndex by remember { mutableIntStateOf(0) }
     val selectedAnswers = remember {
         mutableStateMapOf<Int, String>()
     }
-    var isPopupVisible by remember { mutableStateOf(false) }
+    //var isPopupVisible by remember { mutableStateOf(false) }
     var totalScore by remember { mutableIntStateOf(0) }
+
+    //val snackbarHostState = remember { SnackbarHostState() }
+    //val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -138,32 +146,44 @@ fun quizSuccess(questions: Question){
             } else {
                 //TODO: Carry out functionality for when questionnaire is complete
                 totalScore = calculateQuizScore(questions, selectedAnswers)
-                isPopupVisible = true
+                //isPopupVisible = true
+                //coroutineScope.launch {
+                //    val snackBarResult = snackbarHostState.showSnackbar(
+                //        message = "Your result is: $totalScore",
+                //        actionLabel = "Okay",
+                //        duration = SnackbarDuration.Indefinite
+                //    )
+                //    when (snackBarResult) {
+                //        SnackbarResult.Dismissed -> Log.i("SnackBarAction", "dismissed!")
+                //        SnackbarResult.ActionPerformed -> Log.i("SnackBarAction", "action clicked!")
+                 //   }
+                //}
+                onNavigate(totalScore)
 
             }
         }) {
             Text(text = if (currentQuestionIndex == questions.size - 1) "Finish" else "Next")
         }
         //TODO: FIX app failing when calculating score and that
-        customAnimatedPopup(
-            isVisible = isPopupVisible,
-            onDismiss = { isPopupVisible = false },
-            message = when {
-                totalScore <= 50 -> {
-                    "You got $totalScore\nUnlucky! Keep trying, you'll do better next time"
-                }
-                totalScore in 51..75 -> {
-                    "You got $totalScore\nGood Job! You can still do better!"
-                }
-                totalScore > 75 -> {
-                    "You got $totalScore\nWell done! You passed the quiz!"
-                }
+        //customAnimatedPopup(
+        //    isVisible = isPopupVisible,
+        //    onDismiss = { isPopupVisible = false },
+        //    message = when {
+        //        totalScore <= 50 -> {
+        //            "You got $totalScore\nUnlucky! Keep trying, you'll do better next time"
+        //        }
+        //        totalScore in 51..75 -> {
+        //            "You got $totalScore\nGood Job! You can still do better!"
+        //        }
+        //        totalScore > 75 -> {
+        //            "You got $totalScore\nWell done! You passed the quiz!"
+        //        }
 
-                else -> {
-                    "There was an error in calculating you score sorry!"
-                }
-            }
-        )
+        //        else -> {
+        //            "There was an error in calculating you score sorry!"
+        //        }
+        //    }
+        //)
     }
 }
 
@@ -353,17 +373,17 @@ fun extractCorrectAnswers(question: Question): ArrayList<String> {
         val correctAnswers = questionItem.correct_answers
         val answers = questionItem.answers
         if (correctAnswers.answer_a_correct == "true") {
-            extractedAnswers[currentIndex] = answers.answer_a
+            extractedAnswers.add(answers.answer_a)
         } else if (correctAnswers.answer_b_correct == "true") {
-            extractedAnswers[currentIndex] = answers.answer_b
+            extractedAnswers.add(answers.answer_b)
         } else if (correctAnswers.answer_c_correct == "true") {
-            extractedAnswers[currentIndex] = answers.answer_c
+            extractedAnswers.add(answers.answer_c)
         }else if (correctAnswers.answer_d_correct == "true") {
-            extractedAnswers[currentIndex] = answers.answer_d
+            extractedAnswers.add(answers.answer_d)
         } else if (correctAnswers.answer_e_correct == "true") {
-            extractedAnswers[currentIndex] = answers.answer_e
+            extractedAnswers.add(answers.answer_e)
         }else if (correctAnswers.answer_f_correct == "true") {
-            extractedAnswers[currentIndex] = answers.answer_f
+            extractedAnswers.add(answers.answer_f)
         }
         currentIndex++
     }

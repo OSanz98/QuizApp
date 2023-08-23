@@ -24,6 +24,7 @@ import androidx.navigation.navArgument
 import sanzlimited.com.quizapp.presentation.screens.homeScreen
 import sanzlimited.com.quizapp.presentation.screens.quizScreen
 import androidx.compose.ui.res.stringResource
+import sanzlimited.com.quizapp.presentation.screens.resultScreen
 
 interface Destination {
     val route: String
@@ -39,6 +40,14 @@ object Quiz: Destination {
     const val routeArg: String = "category"
     val routeWithArg: String = "quiz/{$routeArg}"
     val arguments = listOf(navArgument("category"){ type = NavType.StringType })
+}
+
+object Result: Destination {
+    override val route: String = "result"
+    override val title: Int = R.string.result
+    const val routeArg: String = "userResult"
+    val routeWithArg: String = "result/{$routeArg}"
+    val arguments = listOf(navArgument("userResult"){ type = NavType.IntType })
 }
 
 
@@ -62,9 +71,20 @@ fun navigationRouter() {
                      navController.popBackStack()
                 },
                 content = {
-                    quizScreen(category = argumentValue)
+                    quizScreen(category = argumentValue, onNavigate = { value ->
+                        navController.navigate(route = "${Result.route}/${value}")
+                    })
                 }
             )
+        }
+
+        composable(route = Result.routeWithArg, arguments = Result.arguments) { navBackStackEntry ->
+            val argumentValue = navBackStackEntry.arguments?.getInt(Result.routeArg)
+            customScaffold(appBarTitle = stringResource(id = Result.title), hasBackButton = false, content = {
+                resultScreen(result = argumentValue, onBackHome = {
+                    navController.navigate(route = Home.route)
+                })
+            })
         }
     }
 }
